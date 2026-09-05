@@ -30,6 +30,48 @@
     let app=await new Response(stream).text();
     app=app.replace('<meta name="apple-mobile-web-app-capable" content="yes">','');
     app=app.replace('href="manifest.webmanifest"','href="manifest.webmanifest?v=3"');
+    const coveragePatch=`<style>
+#coverageTable table{min-width:0!important;table-layout:fixed}
+#coverageTable th:nth-child(1),#coverageTable td:nth-child(1){width:104px;text-align:left}
+#coverageTable th:nth-child(2),#coverageTable td:nth-child(2){text-align:left;overflow:hidden;text-overflow:ellipsis}
+#coverageTable th:nth-child(3),#coverageTable td:nth-child(3){width:86px;text-align:left}
+#coverageTable th:nth-child(4),#coverageTable td:nth-child(4){width:118px;text-align:right}
+.coverage-date-short,.coverage-kind-mobile{display:none}
+@media(max-width:760px){
+ #coverageTable{overflow:hidden}
+ #coverageTable table{min-width:0!important;width:100%;table-layout:fixed}
+ #coverageTable th,#coverageTable td{padding:10px 7px}
+ #coverageTable th:nth-child(1),#coverageTable td:nth-child(1){width:60px}
+ #coverageTable th:nth-child(2),#coverageTable td:nth-child(2){width:auto;white-space:normal}
+ #coverageTable th:nth-child(3),#coverageTable td:nth-child(3){display:none}
+ #coverageTable th:nth-child(4),#coverageTable td:nth-child(4){width:96px}
+ .coverage-date-full{display:none}.coverage-date-short{display:inline}
+ .coverage-kind-mobile{display:block;color:var(--muted);font-size:11px;line-height:1.3;margin-top:2px}
+}
+</style><script>
+(()=>{
+ const enhance=()=>{
+  const table=document.querySelector('#coverageTable table');
+  if(!table)return;
+  table.querySelectorAll('tbody tr').forEach(tr=>{
+   const c=tr.cells;if(!c||c.length<4)return;
+   const raw=(c[0].textContent||'').trim();
+   if(/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)&&!c[0].querySelector('.coverage-date-full')){
+    c[0].innerHTML='<span class="coverage-date-full">'+raw+'</span><span class="coverage-date-short">'+raw.slice(5)+'</span>';
+   }
+   if(!c[1].querySelector('.coverage-kind-mobile')){
+    const kind=(c[2].textContent||'').trim();
+    if(kind&&kind!=='—'){
+     const d=document.createElement('div');d.className='coverage-kind-mobile';d.textContent=kind;c[1].appendChild(d);
+    }
+   }
+  });
+ };
+ const box=document.getElementById('coverageTable');
+ if(box){new MutationObserver(enhance).observe(box,{childList:true,subtree:true});enhance();}
+})();
+<\/script>`;
+    app=app.replace('</body>',coveragePatch+'</body>');
     document.open();document.write(app);document.close();
   }catch(e){
     document.body.innerHTML='<div class="loading"><div class="box"><div class="mark">!</div><b>启动失败</b><div class="muted">'+String(e.message||e)+'</div></div></div>';
