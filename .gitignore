@@ -1,0 +1,6 @@
+# Never commit private financial exports/backups
+debt_manager_private_data*.json
+*private*.json
+*backup*.json
+*.backup.json
+.DS_Store
