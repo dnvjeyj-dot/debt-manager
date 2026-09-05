@@ -16,9 +16,13 @@
 (async()=>{
   try{
     if(typeof DecompressionStream==='undefined')throw new Error('当前Safari版本过旧，请先更新iOS');
-    const r=await fetch('./app.gz.b64',{cache:'no-store'});
-    if(!r.ok)throw new Error('程序文件加载失败');
-    const b64=(await r.text()).trim();
+    const files=['app-1.b64','app-2.b64','app-3.b64','app-4.b64'];
+    const texts=await Promise.all(files.map(async f=>{
+      const r=await fetch('./'+f,{cache:'no-store'});
+      if(!r.ok)throw new Error('程序文件加载失败：'+f);
+      return (await r.text()).trim();
+    }));
+    const b64=texts.join('');
     const raw=atob(b64);
     const bytes=new Uint8Array(raw.length);
     for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
@@ -26,7 +30,7 @@
     const app=await new Response(stream).text();
     document.open();document.write(app);document.close();
   }catch(e){
-    document.body.innerHTML='<div class="loading"><div class="box"><b>启动失败</b><div class="muted">'+String(e.message||e)+'</div></div></div>'
+    document.body.innerHTML='<div class="loading"><div class="box"><b>启动失败</b><div class="muted">'+String(e.message||e)+'</div></div></div>';
   }
 })();
 </script>
