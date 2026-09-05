@@ -1,4 +1,4 @@
-const CACHE='debt-manager-shell-v3-browser';
+const CACHE='debt-manager-shell-v4-coverage';
 const ASSETS=['./','./index.html','./app-1.b64','./app-2.b64','./app-3.b64','./app-4.b64','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
