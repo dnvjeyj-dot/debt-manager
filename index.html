@@ -5,24 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-title" content="债务管理器">
 <meta name="theme-color" content="#f2f2f7">
-<link rel="manifest" href="manifest.webmanifest?v=8">
+<link rel="manifest" href="manifest.webmanifest?v=9">
 <link rel="icon" href="icon.svg?v=2" type="image/svg+xml">
 <title>债务管理器</title>
 <style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#f2f2f7;color:#1c1c1e}.loading{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}.box{background:#fff;border-radius:22px;padding:24px;max-width:360px;box-shadow:0 8px 30px rgba(0,0,0,.08)}.mark{width:54px;height:54px;margin:0 auto 12px;border-radius:16px;background:#0a84ff;color:#fff;display:grid;place-items:center;font-size:28px;font-weight:800}.muted{color:#8e8e93;font-size:13px;margin-top:8px}</style>
 </head>
 <body>
-<div class="loading"><div class="box"><div class="mark">¥</div><b>债务管理器正在启动</b><div class="muted">正在恢复稳定版本</div></div></div>
+<div class="loading"><div class="box"><div class="mark">¥</div><b>债务管理器正在启动</b><div class="muted">正在加载已验证版本</div></div></div>
 <script>
 (async()=>{
  try{
   if(typeof DecompressionStream==='undefined')throw new Error('当前Safari版本过旧，请先更新iOS');
-  const files=['app-1.b64?v=8','app-2.b64?v=8','app-3.b64?v=8','app-4.b64?v=8'];
+  const files=['v9-1.b64?v=9','v9-2.b64?v=9','v9-3.b64?v=9','v9-4.b64?v=9','v9-5.b64?v=9','v9-6.b64?v=9'];
   const texts=await Promise.all(files.map(async f=>{const r=await fetch('./'+f,{cache:'no-store'});if(!r.ok)throw new Error('程序文件加载失败：'+f);return (await r.text()).trim()}));
   const raw=atob(texts.join(''));const bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
   const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-  let app=await new Response(stream).text();
-  app=app.replace('<meta name="apple-mobile-web-app-capable" content="yes">','');
-  app=app.replace('href="manifest.webmanifest"','href="manifest.webmanifest?v=8"');
+  const app=await new Response(stream).text();
   document.open();document.write(app);document.close();
  }catch(e){document.body.innerHTML='<div class="loading"><div class="box"><div class="mark">!</div><b>启动失败</b><div class="muted">'+String(e.message||e)+'</div></div></div>'}
 })();
