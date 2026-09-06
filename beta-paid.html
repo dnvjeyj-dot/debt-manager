@@ -6,52 +6,84 @@
 <title>贷款本月状态测试</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#1c1c1e;background:#f2f2f7}
-*{box-sizing:border-box}body{margin:0;padding:calc(18px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));background:#f2f2f7}
-.wrap{max-width:680px;margin:auto}.head{margin:10px 0 18px}.head h1{font-size:30px;margin:0 0 6px}.muted{color:#7d8699;font-size:14px;line-height:1.5}
-.note{background:#fff8e8;border:1px solid #e8d49c;border-radius:18px;padding:14px 16px;margin-bottom:16px;line-height:1.55;color:#76571c}
-.card{background:#fff;border-radius:20px;padding:16px;margin:12px 0;box-shadow:0 1px 0 rgba(0,0,0,.04)}
-.row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.name{font-size:18px;font-weight:700}.status{font-size:13px;font-weight:700;padding:5px 9px;border-radius:999px;white-space:nowrap}.paid{color:#277a4a;background:#edf9f1;border:1px solid #b9dfc7}.pending{color:#9a5d00;background:#fff8e8;border:1px solid #efd59d}
-.detail{margin-top:9px;color:#677085;font-size:14px;line-height:1.55}.error{background:#fff0f0;color:#a33131;border:1px solid #e7b9b9;border-radius:18px;padding:16px}.okbox{background:#eef9f2;color:#28754a;border:1px solid #b9dfc7;border-radius:18px;padding:14px 16px;margin-bottom:14px}.btn{display:inline-block;margin-top:18px;padding:11px 15px;border-radius:14px;border:1px solid #cfd5df;background:#fff;color:#0a84ff;text-decoration:none;font-weight:600}
+*{box-sizing:border-box}body{margin:0;padding:calc(18px + env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));background:#f2f2f7}.wrap{max-width:680px;margin:auto}.head{margin:10px 0 18px}.head h1{font-size:30px;margin:0 0 6px}.muted{color:#7d8699;font-size:14px;line-height:1.5}.note{background:#fff8e8;border:1px solid #e8d49c;border-radius:18px;padding:14px 16px;margin-bottom:16px;line-height:1.55;color:#76571c}.okbox{background:#eef9f2;color:#28754a;border:1px solid #b9dfc7;border-radius:18px;padding:14px 16px;margin-bottom:14px}.error{background:#fff0f0;color:#a33131;border:1px solid #e7b9b9;border-radius:18px;padding:16px}.card{background:#fff;border-radius:20px;padding:16px;margin:12px 0;box-shadow:0 1px 0 rgba(0,0,0,.04)}.row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.name{font-size:18px;font-weight:700}.status{font-size:13px;font-weight:700;padding:5px 9px;border-radius:999px;white-space:nowrap}.paid{color:#277a4a;background:#edf9f1;border:1px solid #b9dfc7}.pending{color:#9a5d00;background:#fff8e8;border:1px solid #efd59d}.detail{margin-top:9px;color:#677085;font-size:14px;line-height:1.55}.form{background:#fff;border-radius:20px;padding:16px;margin:16px 0}.form h2{font-size:20px;margin:0 0 12px}.field{margin:10px 0}.field label{display:block;font-size:13px;color:#677085;margin-bottom:6px}.field select,.field input{width:100%;font:inherit;padding:12px;border:1px solid #d6dbe4;border-radius:12px;background:#fff}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.btn{display:inline-block;padding:11px 15px;border-radius:14px;border:1px solid #cfd5df;background:#fff;color:#0a84ff;text-decoration:none;font-weight:600}.btn.primary{background:#0a84ff;color:#fff;border-color:#0a84ff}.btn.danger{color:#b33b3b}.btn[disabled]{opacity:.45}.small{font-size:12px;color:#7d8699;line-height:1.55;margin-top:8px}
 </style>
 </head>
 <body><div class="wrap">
-<div class="head"><h1>贷款本月状态测试</h1><div class="muted">只读，不写入、不清空、不修改任何本地数据。</div></div>
-<div class="note">正式版保持不变。这个页面只验证“本月已还”识别逻辑是否正确。</div>
+<div class="head"><h1>贷款本月状态测试</h1><div class="muted">只修改你明确选择的贷款“本月已还”状态；不调整本金，不扣资金账户。</div></div>
+<div class="note">正式版保持不变。保存前会在本机自动留一份一层备份，可用“撤销本次写入”恢复。</div>
 <div id="out"></div>
+<div class="form" id="formBox" hidden>
+<h2>补录本月还款状态</h2>
+<div class="field"><label for="debtSel">贷款</label><select id="debtSel"></select></div>
+<div class="field"><label for="payDate">实际还款日期</label><input id="payDate" type="date"></div>
+<div class="field"><label for="payAmount">实际支付金额</label><input id="payAmount" type="number" min="0.01" step="0.01" inputmode="decimal"></div>
+<div class="actions"><button class="btn primary" id="saveBtn" type="button">记录本月已还</button><button class="btn danger" id="undoBtn" type="button">撤销本次写入</button></div>
+<div class="small">此测试页只写入：记录月份、还款日期、实际支付金额，并追加一条操作历史。不会改变贷款本金余额。</div>
+</div>
 <a class="btn" href="./">返回正式版</a>
 </div>
 <script>
 (()=>{
  const KEY='debt_manager_hosted_v1';
- const out=document.getElementById('out');
+ const BACKUP='debt_manager_beta_paid_backup_v1';
+ const out=document.getElementById('out'), formBox=document.getElementById('formBox');
+ const debtSel=document.getElementById('debtSel'), payDate=document.getElementById('payDate'), payAmount=document.getElementById('payAmount');
+ const saveBtn=document.getElementById('saveBtn'), undoBtn=document.getElementById('undoBtn');
  const pad=n=>String(n).padStart(2,'0');
- const now=new Date();
- const month=now.getFullYear()+'-'+pad(now.getMonth()+1);
+ const nowMonth=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)};
+ const today=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
  const money=n=>typeof n==='number'&&isFinite(n)?'¥'+n.toLocaleString('zh-CN',{minimumFractionDigits:0,maximumFractionDigits:2}):'—';
- try{
-   const raw=localStorage.getItem(KEY);
-   if(!raw){out.innerHTML='<div class="error"><b>当前 Safari 环境未找到本地数据。</b></div>';return}
-   const data=JSON.parse(raw);
-   if(!data||!Array.isArray(data.debts)){throw new Error('债务数据结构不存在')}
+ let data=null, raw=null;
+ function resolvedPayment(d){
+   let payMonth=d.lastPaymentMonth||null, payDate=d.lastPaymentDate||null, payAmount=(typeof d.lastPaymentAmount==='number'?d.lastPaymentAmount:null);
    const history=Array.isArray(data.history)?data.history:[];
-   const rows=data.debts.map(d=>{
-     let payMonth=d.lastPaymentMonth||null;
-     let payDate=d.lastPaymentDate||null;
-     let payAmount=(typeof d.lastPaymentAmount==='number'?d.lastPaymentAmount:null);
-     if(!payMonth){
-       const hit=history.find(h=>h&&typeof h.title==='string'&&h.title.indexOf(String(d.name||'')+' 本期还款')===0);
-       if(hit){
-         const note=String(hit.note||'');
-         const dm=note.match(/^(\d{4}-\d{2}-\d{2})/);
-         if(dm){payDate=dm[1];payMonth=payDate.slice(0,7)}
-         if(payAmount==null){const am=String(hit.title).match(/¥([\d,]+(?:\.\d+)?)/);if(am)payAmount=Number(am[1].replace(/,/g,''))}
-       }
-     }
-     const paid=payMonth===month;
-     return '<div class="card"><div class="row"><div class="name">'+String(d.name||'未命名贷款')+'</div><span class="status '+(paid?'paid':'pending')+'">'+(paid?'本月已还':'待处理')+'</span></div><div class="detail">还款日：'+(d.dueDay?d.dueDay+'日':'待补')+'<br>记录月份：'+(payMonth||'—')+'<br>最近还款：'+(payDate||'—')+(payAmount!=null?' · '+money(payAmount):'')+'</div></div>';
-   }).join('');
-   out.innerHTML='<div class="okbox">已读取本地数据：'+data.debts.length+' 笔债务；当前月份 '+month+'</div>'+rows;
- }catch(e){out.innerHTML='<div class="error"><b>读取失败：</b>'+String(e&&e.message||e)+'</div>'}
+   if(!payMonth){
+     const hit=history.find(h=>h&&typeof h.title==='string'&&h.title.indexOf(String(d.name||'')+' 本期还款')===0);
+     if(hit){const note=String(hit.note||'');const dm=note.match(/^(\d{4}-\d{2}-\d{2})/);if(dm){payDate=dm[1];payMonth=payDate.slice(0,7)}if(payAmount==null){const am=String(hit.title).match(/¥([\d,]+(?:\.\d+)?)/);if(am)payAmount=Number(am[1].replace(/,/g,''))}}
+   }
+   return {payMonth,payDate,payAmount};
+ }
+ function render(){
+   try{
+     raw=localStorage.getItem(KEY);
+     if(!raw){out.innerHTML='<div class="error"><b>当前 Safari 环境未找到本地数据。</b></div>';formBox.hidden=true;return}
+     data=JSON.parse(raw);
+     if(!data||!Array.isArray(data.debts))throw new Error('债务数据结构不存在');
+     data.history=Array.isArray(data.history)?data.history:[];
+     const month=nowMonth();
+     const rows=data.debts.map(d=>{const p=resolvedPayment(d);const paid=p.payMonth===month;return '<div class="card"><div class="row"><div class="name">'+String(d.name||'未命名贷款')+'</div><span class="status '+(paid?'paid':'pending')+'">'+(paid?'本月已还':'待处理')+'</span></div><div class="detail">还款日：'+(d.dueDay?d.dueDay+'日':'待补')+'<br>记录月份：'+(p.payMonth||'—')+'<br>最近还款：'+(p.payDate||'—')+(p.payAmount!=null?' · '+money(p.payAmount):'')+'</div></div>'}).join('');
+     out.innerHTML='<div class="okbox">已读取本地数据：'+data.debts.length+' 笔债务；当前月份 '+month+'</div>'+rows;
+     debtSel.innerHTML=data.debts.map((d,i)=>'<option value="'+i+'">'+String(d.name||('贷款 '+(i+1)))+'</option>').join('');
+     if(!payDate.value)payDate.value=today();
+     undoBtn.disabled=!localStorage.getItem(BACKUP);
+     formBox.hidden=false;
+   }catch(e){out.innerHTML='<div class="error"><b>读取失败：</b>'+String(e&&e.message||e)+'</div>';formBox.hidden=true}
+ }
+ saveBtn.addEventListener('click',()=>{
+   try{
+     if(!data)return;
+     const idx=Number(debtSel.value), d=data.debts[idx];
+     const date=payDate.value, amount=Number(payAmount.value);
+     if(!d||!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('请选择贷款并填写正确日期');return}
+     if(!(amount>0)){alert('请输入实际支付金额');return}
+     if(!confirm('确认只为“'+String(d.name||'该贷款')+'”记录 '+date+' 已支付 '+money(amount)+'？\n不会修改本金余额。'))return;
+     const before=localStorage.getItem(KEY); if(!before)throw new Error('原始数据不存在');
+     localStorage.setItem(BACKUP,before);
+     d.lastPaymentMonth=date.slice(0,7);d.lastPaymentDate=date;d.lastPaymentAmount=Math.round((amount+Number.EPSILON)*100)/100;
+     const prefix=String(d.name||'贷款')+' 本期还款';
+     const exists=data.history.some(h=>h&&typeof h.title==='string'&&h.title.indexOf(prefix)===0&&String(h.note||'').indexOf(date)===0);
+     if(!exists)data.history.unshift({time:new Date().toISOString(),title:prefix+' '+money(d.lastPaymentAmount),note:date+' · 状态补录 · 未调整本金余额'});
+     localStorage.setItem(KEY,JSON.stringify(data));
+     payAmount.value='';render();alert('已写入 Safari 本地数据。请确认上方状态已变为“本月已还”。');
+   }catch(e){alert('保存失败：'+String(e&&e.message||e))}
+ });
+ undoBtn.addEventListener('click',()=>{
+   const backup=localStorage.getItem(BACKUP);if(!backup){alert('没有可撤销的测试写入');return}
+   if(!confirm('确认恢复测试写入前的数据？'))return;
+   localStorage.setItem(KEY,backup);localStorage.removeItem(BACKUP);payAmount.value='';render();alert('已恢复测试写入前的数据。');
+ });
+ render();
 })();
 </script>
 </body></html>
