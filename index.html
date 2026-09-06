@@ -5,91 +5,26 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-title" content="债务管理器">
 <meta name="theme-color" content="#f2f2f7">
-<link rel="manifest" href="manifest.webmanifest?v=7">
+<link rel="manifest" href="manifest.webmanifest?v=8">
 <link rel="icon" href="icon.svg?v=2" type="image/svg+xml">
 <title>债务管理器</title>
 <style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#f2f2f7;color:#1c1c1e}.loading{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}.box{background:#fff;border-radius:22px;padding:24px;max-width:360px;box-shadow:0 8px 30px rgba(0,0,0,.08)}.mark{width:54px;height:54px;margin:0 auto 12px;border-radius:16px;background:#0a84ff;color:#fff;display:grid;place-items:center;font-size:28px;font-weight:800}.muted{color:#8e8e93;font-size:13px;margin-top:8px}</style>
 </head>
 <body>
-<div class="loading"><div class="box"><div class="mark">¥</div><b>债务管理器正在启动</b><div class="muted">正在加载 iPhone 版界面</div></div></div>
+<div class="loading"><div class="box"><div class="mark">¥</div><b>债务管理器正在启动</b><div class="muted">正在恢复稳定版本</div></div></div>
 <script>
 (async()=>{
-  try{
-    if(typeof DecompressionStream==='undefined')throw new Error('当前Safari版本过旧，请先更新iOS');
-    const files=['app-1.b64?v=7','app-2.b64?v=7','app-3.b64?v=7','app-4.b64?v=7'];
-    const texts=await Promise.all(files.map(async f=>{
-      const r=await fetch('./'+f,{cache:'no-store'});
-      if(!r.ok)throw new Error('程序文件加载失败：'+f);
-      return (await r.text()).trim();
-    }));
-    const b64=texts.join('');
-    const raw=atob(b64);
-    const bytes=new Uint8Array(raw.length);
-    for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
-    const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    let app=await new Response(stream).text();
-    app=app.replace('<meta name="apple-mobile-web-app-capable" content="yes">','');
-    app=app.replace('href="manifest.webmanifest"','href="manifest.webmanifest?v=7"');
-    const paymentPatchPairs=[["\n<div class=\"modal\" id=\"recvModal\"","\n<div class=\"modal\" id=\"debtDueModal\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"debtDueTitle\">\n  <div class=\"modal-card\">\n    <h3 id=\"debtDueTitle\">记录本期还款</h3>\n    <div class=\"callout\">用于确认本月还款已经处理。先息后本默认“冲本金”为0；等额本息如果不知道本期冲本金金额，可以留空，程序只记录已还，不改本金余额。</div>\n    <div class=\"form-grid\" style=\"margin-top:12px\">\n      <div class=\"field\"><label for=\"debtDueAmount\">本次实际支付</label><input id=\"debtDueAmount\" type=\"number\" min=\"0.01\" step=\"0.01\" inputmode=\"decimal\"></div>\n      <div class=\"field\"><label for=\"debtDuePrincipal\">其中冲本金（可留空）</label><input id=\"debtDuePrincipal\" type=\"number\" min=\"0\" step=\"0.01\" inputmode=\"decimal\"></div>\n      <div class=\"field\"><label for=\"debtDueDate\">实际还款日期</label><input id=\"debtDueDate\" type=\"date\"></div>\n      <div class=\"field\"><label for=\"debtDueFund\">资金账户（可选）</label><select id=\"debtDueFund\"></select></div>\n    </div>\n    <div class=\"modal-actions\">\n      <button class=\"btn\" data-close=\"debtDueModal\" type=\"button\">取消</button>\n      <button class=\"btn primary\" id=\"debtDueSaveBtn\" type=\"button\">确认本期已还</button>\n    </div>\n  </div>\n</div>\n\n<div class=\"modal\" id=\"recvModal\""],["    parsed.debts.forEach(d=>{if(!('monthlyPayment' in d))d.monthlyPayment=null;if(!('note' in d))d.note='';if(d.maturity==='待补')d.maturity=null;if(!('lastTouchedAt' in d))d.lastTouchedAt=null});","    parsed.debts.forEach(d=>{if(!('monthlyPayment' in d))d.monthlyPayment=null;if(!('note' in d))d.note='';if(d.maturity==='待补')d.maturity=null;if(!('lastTouchedAt' in d))d.lastTouchedAt=null;if(!('lastPaymentMonth' in d))d.lastPaymentMonth=null;if(!('lastPaymentDate' in d))d.lastPaymentDate=null;if(!('lastPaymentAmount' in d))d.lastPaymentAmount=null});"],["function battleStatus(date){","function nowMonthKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}\nfunction battleStatus(date)"],["  data.debts.forEach((d,idx)=>{\n    const req=debtMonthlyRequired(d);","  const battleMonthKey=nowMonthKey();\n  data.debts.forEach((d,idx)=>{\n    const req=debtMonthlyRequired(d);\n    if(d.lastPaymentMonth===battleMonthKey)return;"],["        date,name:d.name,kind:'贷款/借款',amount:req,idx,action:'debt',","        date,name:d.name,kind:'贷款/借款',amount:req,idx,action:'debtPay',"],["    if(x.action==='debt')btn='<button class=\"btn small\" data-bact=\"debtEdit\" data-idx=\"'+x.idx+'\" type=\"button\">查看/编辑</button>';","    if(x.action==='debtPay')btn='<button class=\"btn small primary\" data-bact=\"debtPay\" data-idx=\"'+x.idx+'\" type=\"button\">记录还款</button>';"],["    '<div class=\"card-grid\">'+kv('当前欠款',money(d.balance))+kv('年利率',rateText(d))+kv('还款方式',d.method)+kv('还款日',d.dueDay?d.dueDay+'日':'待补')+kv('到期',d.maturity||'待补')+kv('月度预计',money(debtMonthlyRequired(d)))+'</div>'+","    '<div class=\"card-grid\">'+kv('当前欠款',money(d.balance))+kv('年利率',rateText(d))+kv('还款方式',d.method)+kv('还款日',d.dueDay?d.dueDay+'日':'待补')+kv('到期',d.maturity||'待补')+kv('月度预计',money(debtMonthlyRequired(d)))+kv('最近还款',d.lastPaymentDate?d.lastPaymentDate+' '+money(d.lastPaymentAmount):'—')+'</div>'+"],["  const item={name,type:$('dType').value,balance,rate,method:$('dMethod').value,dueDay,maturity:$('dMaturity').value||null,monthlyPayment,note:$('dNote').value.trim(),lastTouchedAt:new Date().toISOString()};","  const prev=editingDebtIdx===null?null:data.debts[editingDebtIdx];\n  const item={name,type:$('dType').value,balance,rate,method:$('dMethod').value,dueDay,maturity:$('dMaturity').value||null,monthlyPayment,note:$('dNote').value.trim(),lastTouchedAt:new Date().toISOString(),lastPaymentMonth:prev?prev.lastPaymentMonth:null,lastPaymentDate:prev?prev.lastPaymentDate:null,lastPaymentAmount:prev?prev.lastPaymentAmount:null};"],["\nfunction openRecvEditor(idx){","\nfunction openDebtDuePay(idx){\n  const d=data.debts[idx];if(!d)return;\n  payingDebtIdx=idx;\n  const req=debtMonthlyRequired(d);\n  $('debtDueTitle').textContent=d.name+' · 记录本期还款';\n  $('debtDueAmount').value=req===null?'':round2(req);\n  $('debtDuePrincipal').value=d.method==='先息后本'?0:'';\n  $('debtDueDate').value=todayISO();\n  populateFundSelect('debtDueFund','本期还款不关联资金账户');$('debtDueFund').value='';\n  openModal('debtDueModal');\n}\nfunction saveDebtDuePay(){\n  const d=data.debts[payingDebtIdx];if(!d)return;\n  const amount=round2(Number($('debtDueAmount').value));if(!(amount>0)){toast('请输入实际支付金额');return}\n  const principalRaw=$('debtDuePrincipal').value.trim();\n  const principal=principalRaw===''?null:round2(Number(principalRaw));\n  if(principal!==null&&(!isFinite(principal)||principal<0||principal>amount+0.005||principal>d.balance+0.005)){toast('冲本金金额不正确');return}\n  const fundVal=$('debtDueFund').value;\n  if(fundVal!==''){const f=data.funds[Number(fundVal)];if(!f||usableFund(f)+0.005<amount){toast((f?f.name:'资金账户')+' 可动用资金不足');return}}\n  snapshot('本期还款 '+d.name);\n  const before=d.balance;touch(d);\n  if(principal!==null){\n    if(principal>0){addMonthStat('debtPrincipalPayments',principal);d.balance=round2(Math.max(0,d.balance-principal))}\n    const interest=round2(Math.max(0,amount-principal));if(interest>0)addMonthStat('interestPaid',interest);\n  }\n  let fundName='';if(fundVal!==''){const res=deductFund(Number(fundVal),amount,'本期还款');if(res.ok)fundName=res.name}\n  d.lastPaymentMonth=nowMonthKey();d.lastPaymentDate=$('debtDueDate').value||todayISO();d.lastPaymentAmount=amount;\n  const principalNote=principal===null?'本金部分未录':('冲本金 '+money(principal)+(d.balance!==before?' · 本金 '+money(before)+' → '+money(d.balance):''));\n  data.history.unshift({time:new Date().toISOString(),title:d.name+' 本期还款 '+money(amount),note:d.lastPaymentDate+' · '+principalNote+(fundName?' · 从 '+fundName+' 扣款':'')});\n  closeModal('debtDueModal');save('本期还款已记录');\n}\n\nfunction openRecvEditor(idx)"],["$('debtPaySaveBtn').addEventListener('click',saveDebtPay);","$('debtPaySaveBtn').addEventListener('click',saveDebtPay);\n$('debtDueSaveBtn').addEventListener('click',saveDebtDuePay);"],["  if(b.dataset.bact==='debtEdit')openDebtEditor(idx);","  if(b.dataset.bact==='debtPay')openDebtDuePay(idx);"]];
-    for(const [from,to] of paymentPatchPairs){if(!app.includes(from))throw new Error('还款功能升级失败：程序版本不匹配');app=app.replace(from,to);}
-    const paidStatusPairs=[
-      [".battle-status.later{color:var(--muted)}",".battle-status.later{color:var(--muted)}\n.battle-status.paid{color:var(--ok);background:#f2fbf6;border-color:#bddfcb}"],
-      ["    parsed.debts.forEach(d=>{if(!('monthlyPayment' in d))d.monthlyPayment=null;if(!('note' in d))d.note='';if(d.maturity==='待补')d.maturity=null;if(!('lastTouchedAt' in d))d.lastTouchedAt=null;if(!('lastPaymentMonth' in d))d.lastPaymentMonth=null;if(!('lastPaymentDate' in d))d.lastPaymentDate=null;if(!('lastPaymentAmount' in d))d.lastPaymentAmount=null});\n    return parsed;",
-       "    parsed.debts.forEach(d=>{if(!('monthlyPayment' in d))d.monthlyPayment=null;if(!('note' in d))d.note='';if(d.maturity==='待补')d.maturity=null;if(!('lastTouchedAt' in d))d.lastTouchedAt=null;if(!('lastPaymentMonth' in d))d.lastPaymentMonth=null;if(!('lastPaymentDate' in d))d.lastPaymentDate=null;if(!('lastPaymentAmount' in d))d.lastPaymentAmount=null});\n    parsed.debts.forEach(d=>{if(d.lastPaymentMonth)return;const hit=parsed.history.find(h=>h&&typeof h.title==='string'&&h.title.indexOf(d.name+' 本期还款')===0);if(!hit)return;const note=String(hit.note||'');const dm=note.match(/^(\\d{4}-\\d{2}-\\d{2})/);let payDate=dm?dm[1]:null;if(!payDate&&hit.time){const dt=new Date(hit.time);if(!isNaN(dt.getTime()))payDate=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0')}if(payDate){d.lastPaymentDate=payDate;d.lastPaymentMonth=payDate.slice(0,7)}const am=String(hit.title).match(/¥([\\d,]+(?:\\.\\d+)?)/);if(am)d.lastPaymentAmount=Number(am[1].replace(/,/g,''));});\n    return parsed;"],
-      ["  $('battleTimeline').innerHTML=bm.items.length?bm.items.map(x=>{",
-       "  const paidDebts=data.debts.filter(d=>d.lastPaymentMonth===nowMonthKey());\n  $('battleTimeline').innerHTML=bm.items.length?bm.items.map(x=>{"],
-      ["  }).join(''):'<div class=\"empty\">本月没有已录入的待处理事项</div>';",
-       "  }).join(''):'<div class=\"empty\">本月没有已录入的待处理事项</div>';\n  if(paidDebts.length){$('battleTimeline').insertAdjacentHTML('afterbegin',paidDebts.map(d=>{const dd=d.dueDay?currentMonthDate(d.dueDay):new Date();return '<div class=\"battle-row\"><div><div class=\"battle-date\">'+fmtDate(dd)+'</div><span class=\"battle-status paid\">本月已还</span></div><div><b>'+d.name+'</b><div class=\"muted\">'+(d.lastPaymentDate?'已于 '+d.lastPaymentDate+' 支付':'本月已记录还款')+(d.lastPaymentAmount?' '+money(d.lastPaymentAmount):'')+'</div></div><div>贷款/借款</div><div><b>'+(d.lastPaymentAmount?money(d.lastPaymentAmount):'已处理')+'</b></div><div></div></div>'}).join(''));}"],
-      ["+kv('最近还款',d.lastPaymentDate?d.lastPaymentDate+' '+money(d.lastPaymentAmount):'—')+'</div>'+",
-       "+kv('本月状态',d.lastPaymentMonth===nowMonthKey()?'已还':'待处理')+kv('最近还款',d.lastPaymentDate?d.lastPaymentDate+' '+money(d.lastPaymentAmount):'—')+'</div>'+" ]
-    ];
-    for(const [from,to] of paidStatusPairs){if(!app.includes(from))throw new Error('本月还款状态升级失败：程序版本不匹配');app=app.replace(from,to);}
-    const coveragePatch=`<style>
-#coverageTable table{min-width:0!important;table-layout:fixed}
-#coverageTable th:nth-child(1),#coverageTable td:nth-child(1){width:104px;text-align:left}
-#coverageTable th:nth-child(2),#coverageTable td:nth-child(2){text-align:left;overflow:hidden;text-overflow:ellipsis}
-#coverageTable th:nth-child(3),#coverageTable td:nth-child(3){width:86px;text-align:left}
-#coverageTable th:nth-child(4),#coverageTable td:nth-child(4){width:118px;text-align:right}
-.coverage-date-short,.coverage-kind-mobile{display:none}
-@media(max-width:760px){
- #coverageTable{overflow:hidden}
- #coverageTable table{min-width:0!important;width:100%;table-layout:fixed}
- #coverageTable th,#coverageTable td{padding:10px 7px}
- #coverageTable th:nth-child(1),#coverageTable td:nth-child(1){width:60px}
- #coverageTable th:nth-child(2),#coverageTable td:nth-child(2){width:auto;white-space:normal}
- #coverageTable th:nth-child(3),#coverageTable td:nth-child(3){display:none}
- #coverageTable th:nth-child(4),#coverageTable td:nth-child(4){width:96px}
- .coverage-date-full{display:none}.coverage-date-short{display:inline}
- .coverage-kind-mobile{display:block;color:var(--muted);font-size:11px;line-height:1.3;margin-top:2px}
-}
-</style><script>
-(()=>{
- const enhance=()=>{
-  const table=document.querySelector('#coverageTable table');
-  if(!table)return;
-  table.querySelectorAll('tbody tr').forEach(tr=>{
-   const c=tr.cells;if(!c||c.length<4)return;
-   const raw=(c[0].textContent||'').trim();
-   if(/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)&&!c[0].querySelector('.coverage-date-full')){
-    c[0].innerHTML='<span class="coverage-date-full">'+raw+'</span><span class="coverage-date-short">'+raw.slice(5)+'</span>';
-   }
-   if(!c[1].querySelector('.coverage-kind-mobile')){
-    const kind=(c[2].textContent||'').trim();
-    if(kind&&kind!=='—'){
-     const d=document.createElement('div');d.className='coverage-kind-mobile';d.textContent=kind;c[1].appendChild(d);
-    }
-   }
-  });
- };
- const box=document.getElementById('coverageTable');
- if(box){new MutationObserver(enhance).observe(box,{childList:true,subtree:true});enhance();}
-})();
-<\/script>`;
-    app=app.replace('</body>',coveragePatch+'</body>');
-    document.open();document.write(app);document.close();
-  }catch(e){
-    document.body.innerHTML='<div class="loading"><div class="box"><div class="mark">!</div><b>启动失败</b><div class="muted">'+String(e.message||e)+'</div></div></div>';
-  }
+ try{
+  if(typeof DecompressionStream==='undefined')throw new Error('当前Safari版本过旧，请先更新iOS');
+  const files=['app-1.b64?v=8','app-2.b64?v=8','app-3.b64?v=8','app-4.b64?v=8'];
+  const texts=await Promise.all(files.map(async f=>{const r=await fetch('./'+f,{cache:'no-store'});if(!r.ok)throw new Error('程序文件加载失败：'+f);return (await r.text()).trim()}));
+  const raw=atob(texts.join(''));const bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+  const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  let app=await new Response(stream).text();
+  app=app.replace('<meta name="apple-mobile-web-app-capable" content="yes">','');
+  app=app.replace('href="manifest.webmanifest"','href="manifest.webmanifest?v=8"');
+  document.open();document.write(app);document.close();
+ }catch(e){document.body.innerHTML='<div class="loading"><div class="box"><div class="mark">!</div><b>启动失败</b><div class="muted">'+String(e.message||e)+'</div></div></div>'}
 })();
 </script>
 </body>
