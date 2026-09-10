@@ -25,17 +25,22 @@
       return Array.isArray(d.cards)?d.cards.reduce((s,c)=>s+Number(c&&c.available||0),0):0;
     }catch(_){return 0}
   };
+  const valueOf=c=>{const n=c&&c.querySelector('.n,.v10-value');return n?n.textContent.trim():''};
+  const labelOf=c=>{const n=c&&c.querySelector('.v10-label');return n?n.textContent.trim():''};
   function apply(){
     const box=document.getElementById('battleMetrics');
     if(!box||box.children.length<4)return;
     box.classList.add('v10-home-metrics');
     const cards=Array.from(box.children).slice(0,4);
-    const vals=cards.map(c=>{const n=c.querySelector('.n,.v10-value');return n?n.textContent.trim():''});
+    const vals=cards.map(valueOf);
+    const existingGap=cards.find(c=>labelOf(c)==='已知资金缺口');
+    const gapValue=(existingGap?valueOf(existingGap):vals[2])||'待录资金';
+    const gapSub=gapValue==='0'?'当前已知事项可覆盖':(gapValue==='待录资金'?'录入资金后自动计算':'按当前已知事项计算');
     const defs=[
       ['本月已知待处理',vals[0]||'¥0','仅统计已录入金额',''],
       ['当前可动用资金',vals[1]||'待录入',vals[1]==='待录入'?'到资金账户录入余额':'已扣除保留资金','v10-funds'],
-      ['已知资金缺口',vals[2]||'待录资金',vals[2]==='0'?'当前已知事项可覆盖':(vals[2]==='待录资金'?'录入资金后自动计算':'按当前已知事项计算'),vals[2]==='0'?'v10-gap-ok':'v10-gap-warn'],
-      ['可用总额度',money(cardAvailable()),'全部信用卡当前可用额度','v10-available']
+      ['可用总额度',money(cardAvailable()),'全部信用卡当前可用额度','v10-available'],
+      ['已知资金缺口',gapValue,gapSub,gapValue==='0'?'v10-gap-ok':'v10-gap-warn']
     ];
     cards.forEach((c,i)=>{
       const d=defs[i];
