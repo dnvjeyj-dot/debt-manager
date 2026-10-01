@@ -21,7 +21,7 @@ function merge(input,mapping,items,now){
  const groups=new Map();
  for(const p of items){if(!valid(p,today))throw Error('账单字段校验失败，未写入');const k=p.bank+':'+p.last4;const prev=groups.get(k);if(prev&&prev.statementDate===p.statementDate&&JSON.stringify([prev.amountCents,prev.minimumCents,prev.dueDate])!==JSON.stringify([p.amountCents,p.minimumCents,p.dueDate]))throw Error('同一账期存在冲突，未写入');if(!prev||p.statementDate>prev.statementDate)groups.set(k,p);}
  for(const p of groups.values()){
-  if(own(book,p.identity)){results.push({last4:p.last4,status:'unchanged',reason:'这期已处理，保留之后的还款和修改'});continue;}
+  if(own(book,p.identity)){results.push({cardName:book[p.identity].cardName,last4:p.last4,status:'unchanged',reason:'这期已处理，保留之后的还款和修改'});continue;}
   const matches=data.cards.filter(c=>bank(c.name)===p.bank&&mapping&&own(mapping,c.name)&&mapping[c.name]===p.last4);
   if(matches.length!==1){results.push({last4:p.last4,status:'unmatched',reason:matches.length?'相同银行和尾号对应多张卡，未写入':'请在卡尾号映射中指定对应信用卡'});continue;}
   const c=matches[0],debt=cents(c.debt),oldStatement=c.statement===null?null:cents(c.statement);
