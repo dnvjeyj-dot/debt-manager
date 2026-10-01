@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7">
+<title>信用卡尾号映射</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;color:#1c1c1e;background:#f2f2f7}
+*{box-sizing:border-box}body{margin:0;background:#f2f2f7;padding:calc(16px + env(safe-area-inset-top)) 14px calc(32px + env(safe-area-inset-bottom))}
+.wrap{max-width:720px;margin:auto}.head{padding:8px 2px 12px}.head h1{font-size:28px;line-height:1.15;margin:0 0 7px;letter-spacing:-.03em}.sub{font-size:13px;line-height:1.55;color:#7b8496}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:8px 0 14px}.metric{background:#fff;border:1px solid rgba(60,60,67,.10);border-radius:17px;padding:12px;box-shadow:0 2px 12px rgba(0,0,0,.035)}.metric .k{font-size:11px;color:#778197}.metric .v{font-size:21px;font-weight:800;margin-top:5px}.blue{color:#0a84ff}.green{color:#278552}
+.notice{background:#fff8e8;border:1px solid #ead39a;color:#76571c;border-radius:17px;padding:12px 14px;font-size:13px;line-height:1.55;margin-bottom:12px}
+.card{background:#fff;border:1px solid rgba(60,60,67,.10);border-radius:19px;padding:14px;margin:10px 0;box-shadow:0 2px 12px rgba(0,0,0,.035)}.top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.name{font-size:17px;font-weight:750}.meta{font-size:12px;color:#7b8496;margin-top:5px;line-height:1.45}.tag{font-size:11px;font-weight:700;padding:5px 8px;border-radius:999px;white-space:nowrap}.done{background:#eef9f2;color:#26794a;border:1px solid #b9dfc7}.todo{background:#f4f5f7;color:#7c8596;border:1px solid #dfe3e8}
+.edit{display:grid;grid-template-columns:1fr 116px;gap:10px;align-items:end;margin-top:12px}.label{font-size:11px;color:#7b8496;margin:0 0 5px 2px}.bank{height:44px;display:flex;align-items:center;border-radius:13px;background:#f5f6f8;padding:0 12px;font-size:14px;color:#4d5668}.tail{width:100%;height:44px;border:1px solid #d5d9e0;border-radius:13px;background:#fff;padding:0 12px;font-size:18px;font-weight:700;letter-spacing:.12em;text-align:center;outline:none}.tail:focus{border-color:#0a84ff;box-shadow:0 0 0 3px rgba(10,132,255,.12)}
+.actions{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));display:grid;grid-template-columns:1fr auto;gap:9px;margin-top:16px;padding-top:4px}.btn{height:48px;border-radius:15px;border:1px solid #cfd5df;background:#fff;color:#0a84ff;font-size:15px;font-weight:700;padding:0 16px}.primary{background:#0a84ff;border-color:#0a84ff;color:#fff;box-shadow:0 5px 18px rgba(10,132,255,.22)}.back{display:inline-flex;align-items:center;color:#0a84ff;text-decoration:none;font-weight:650;font-size:14px;margin:12px 2px 0}
+.err{background:#fff0f0;border:1px solid #e7b9b9;color:#9c3030;border-radius:17px;padding:14px;line-height:1.55}.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom));background:rgba(28,28,30,.92);color:#fff;padding:10px 14px;border-radius:12px;font-size:13px;opacity:0;pointer-events:none;transition:.2s}.toast.show{opacity:1}
+@media(max-width:480px){.summary{gap:7px}.metric{padding:10px}.metric .v{font-size:19px}.edit{grid-template-columns:1fr 104px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <h1>信用卡尾号映射</h1>
+    <div class="sub">只保存“债务管理器卡名 ↔ 卡尾号”的对应关系。不会修改欠款、额度、账单金额或还款记录。</div>
+  </div>
+  <div id="summary"></div>
+  <div class="notice">尾号用于自动识别电子账单。以后收到新账单时，按“银行 + 卡尾号”匹配具体信用卡，避免同一家银行多张卡串账。</div>
+  <div id="list"></div>
+  <div class="actions">
+    <button class="btn primary" id="saveBtn" type="button">保存尾号映射</button>
+    <button class="btn" id="reloadBtn" type="button">重新读取</button>
+  </div>
+  <a class="back" href="./">← 返回债务管理器</a>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(()=>{
+ const DATA_KEY='debt_manager_hosted_v1';
+ const MAP_KEY='debt_manager_card_map_v1';
+ const $=id=>document.getElementById(id);
+ const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+ const money=n=>'¥'+Number(n||0).toLocaleString('zh-CN',{maximumFractionDigits:0});
+ const bankOf=name=>String(name||'').replace(/\d+$/,'');
+ let cards=[],map={};
+ function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1700)}
+ function load(){
+   try{
+     const raw=localStorage.getItem(DATA_KEY);
+     if(!raw)throw new Error('当前 Safari 环境没有找到债务管理器数据');
+     const data=JSON.parse(raw);
+     if(!data||!Array.isArray(data.cards))throw new Error('信用卡数据结构不存在');
+     cards=data.cards;
+     try{map=JSON.parse(localStorage.getItem(MAP_KEY)||'{}')||{}}catch(_){map={}}
+     render();
+   }catch(e){
+     $('summary').innerHTML='';
+     $('list').innerHTML='<div class="err"><b>读取失败：</b>'+esc(e&&e.message||e)+'</div>';
+   }
+ }
+ function render(){
+   let done=0;
+   const rows=cards.map((c,i)=>{
+     const key=String(c.name||('card-'+i));
+     const last4=String(map[key]||'').replace(/\D/g,'').slice(-4);
+     if(last4.length===4)done++;
+     return '<div class="card" data-name="'+esc(key)+'">'+
+       '<div class="top"><div><div class="name">'+esc(c.name||'未命名信用卡')+'</div>'+
+       '<div class="meta">额度 '+money(c.limit)+' · 账单日 '+(c.statementDay?esc(c.statementDay)+'日':'待补')+'</div></div>'+
+       '<span class="tag '+(last4.length===4?'done':'todo')+'">'+(last4.length===4?'已映射':'待映射')+'</span></div>'+
+       '<div class="edit"><div><div class="label">银行识别名</div><div class="bank">'+esc(bankOf(c.name))+'</div></div>'+
+       '<div><div class="label">卡尾号</div><input class="tail" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" value="'+esc(last4)+'" placeholder="0000"></div></div>'+
+       '</div>';
+   }).join('');
+   $('list').innerHTML=rows;
+   $('summary').innerHTML='<div class="summary">'+
+      '<div class="metric"><div class="k">信用卡</div><div class="v">'+cards.length+'</div></div>'+
+      '<div class="metric"><div class="k">已映射</div><div class="v green">'+done+'</div></div>'+
+      '<div class="metric"><div class="k">待映射</div><div class="v blue">'+Math.max(0,cards.length-done)+'</div></div>'+
+      '</div>';
+   document.querySelectorAll('.tail').forEach(inp=>inp.addEventListener('input',()=>{inp.value=inp.value.replace(/\D/g,'').slice(0,4)}));
+ }
+ function save(){
+   const next={};
+   let invalid=0;
+   document.querySelectorAll('.card').forEach(card=>{
+     const name=card.getAttribute('data-name');
+     const v=card.querySelector('.tail').value.trim();
+     if(v && !/^\d{4}$/.test(v)){invalid++;return}
+     if(v)next[name]=v;
+   });
+   if(invalid){toast('尾号必须是4位数字');return}
+   localStorage.setItem(MAP_KEY,JSON.stringify(next));
+   map=next;render();toast('尾号映射已保存');
+ }
+ $('saveBtn').addEventListener('click',save);
+ $('reloadBtn').addEventListener('click',()=>{load();toast('已重新读取')});
+ load();
+})();
+</script>
+</body>
+</html>
