@@ -7,7 +7,23 @@ const config=()=>read(CFG,{});
 const b64=a=>btoa(Array.from(new Uint8Array(a),x=>String.fromCharCode(x)).join('')).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 const un64=s=>{if(typeof s!=='string'||s.length>300000||!/^[A-Za-z0-9_-]+$/.test(s))throw Error('同步响应格式异常');return Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')),x=>x.charCodeAt(0))};
 async function keyStore(value,remove){
- return new Promise((resolve,reject)=>{const r=indexedDB.open('debt_manager_sync_keys_v1',1);r.onupgradeneeded=()=>r.result.createObjectStore('keys');r.onerror=()=>reject(Error('无法打开本机配对密钥，请勿使用无痕模式'));r.onblocked=()=>reject(Error('请关闭其他配对页面后重试'));r.onsuccess=()=>{const db=r.result,tx=db.transaction('keys',value||remove?'readwrite':'readonly'),s=tx.objectStore('keys');const q=remove?s.delete('device'):value?s.put(value,'device'):s.get('device');let result;q.onsuccess=()=>result=q.result;tx.oncomplete=()=>{db.close();resolve(result)};tx.onerror=()=>{db.close();reject(Error('配对密钥保存失败，未修改账本'))}}});
+ return new Promise((resolve,reject)=>{
+  let settled=false;
+  const fail=()=>{if(settled)return;settled=true;clearTimeout(timer);reject(Error('本机配对密钥读写失败，请关闭其他配对页面后重试；不要清除账本数据'));};
+  const timer=setTimeout(fail,6000);
+  let r;try{r=indexedDB.open('debt_manager_sync_keys_v1',1)}catch(_){fail();return;}
+  r.onupgradeneeded=()=>r.result.createObjectStore('keys');r.onerror=fail;r.onblocked=fail;
+  r.onsuccess=()=>{
+   const db=r.result;if(settled){db.close();return;}
+   try{
+    const tx=db.transaction('keys',value||remove?'readwrite':'readonly'),s=tx.objectStore('keys');
+    const q=remove?s.delete('device'):value?s.put(value,'device'):s.get('device');let result;
+    q.onsuccess=()=>result=q.result;
+    tx.oncomplete=()=>{db.close();if(!settled){settled=true;clearTimeout(timer);resolve(result)}};
+    tx.onerror=tx.onabort=()=>{db.close();fail()};
+   }catch(_){db.close();fail();}
+  };
+ });
 }
 function book(){const raw=localStorage.getItem(DATA);if(!raw)throw Error('这个浏览器没有本机账本，请从原来的 Safari 入口打开');let d;try{d=JSON.parse(raw)}catch(_){throw Error('本机账本无法解析，未写入')};if(!d||!Array.isArray(d.cards)||!Array.isArray(d.debts)||!Array.isArray(d.receivables)||!d.cards.length)throw Error('当前浏览器没有信用卡数据，不会创建或覆盖账本');return {raw,data:d};}
 async function begin(mode,renew){
