@@ -21,7 +21,7 @@
   else try{
     const cfg=JSON.parse(localStorage.getItem('debt_manager_bill_sync_config_v1')||'null');
     if(cfg&&cfg.enabled&&navigator.onLine!==false&&Date.now()-(cfg.lastAttempt||0)>=600000){
-      const loaded=await new Promise(resolve=>{const el=document.createElement('script');let done=false;const finish=v=>{if(done)return;done=true;clearTimeout(timer);resolve(v)};const timer=setTimeout(()=>finish(false),3000);el.onload=()=>finish(true);el.onerror=()=>finish(false);el.src='./bill-sync-client.js?v=1';document.head.appendChild(el)});
+      const loaded=await new Promise(resolve=>{const el=document.createElement('script');let done=false;const finish=v=>{if(done)return;done=true;clearTimeout(timer);resolve(v)};const timer=setTimeout(()=>finish(false),3000);el.onload=()=>finish(true);el.onerror=()=>finish(false);el.src='./bill-sync-client.js?v=2';document.head.appendChild(el)});
       if(loaded&&window.DebtBillSync&&await window.DebtBillSync.beforeBoot()===false)return;
     }
   }catch(_){}

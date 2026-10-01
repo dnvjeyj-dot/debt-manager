@@ -1,4 +1,4 @@
-const CACHE='debt-manager-shell-v12-bill-sync';
+const CACHE='debt-manager-shell-v13-email-priority';
 const ASSETS=['./bill-sync.html','./bill-sync-core.js','./bill-sync-client.js','./bill-sync-guard.js','./','./index.html','./v9-1.b64','./v9-2.b64','./v9-3.b64','./v9-4.b64','./v9-5.b64','./v9-6.b64','./home-available-v10.js','./manifest.webmanifest','./icon.svg','./start.html','./diagnose.html','./beta-paid.html'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});

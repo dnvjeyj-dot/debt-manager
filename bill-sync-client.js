@@ -68,7 +68,7 @@ async function receive(){
   localStorage.setItem(DATA,next);
   if(localStorage.getItem(DATA)!==next)throw Error('账本写入校验失败，请保留备份并停止操作');
  }
- const report={at:new Date().toISOString(),updated:result.updated,results:result.results,lastCheck:payload.feed.lastCheck||null};
+ const report={at:new Date().toISOString(),updated:result.updated,results:result.results,lastCheck:payload.feed.lastCheck||null,policy:result.policy};
  localStorage.setItem(REPORT,JSON.stringify(report));
  localStorage.setItem(CFG,JSON.stringify({enabled:true,linkId:payload.linkId,expiresAt:payload.expiresAt,lastAttempt:Date.now(),lastSuccess:Date.now()}));
  if(pending.mode==='startup'){location.replace(ROOT+'?bill_skip=1');return {redirected:true};}
