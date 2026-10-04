@@ -36,7 +36,7 @@ async function begin(mode,renew){
  const action=cfg.linkId&&!renew?'sync':'pair';
  sessionStorage.setItem(PENDING,JSON.stringify({nonce,mode:mode||'manual',at:Date.now(),action,linkId:cfg.linkId||null}));
  localStorage.setItem(CFG,JSON.stringify({...cfg,lastAttempt:Date.now()}));
- const request={action,nonce,linkId:cfg.linkId||undefined,publicKey:action==='pair'?keys.publicKey:undefined,name:'债务管理器手机'};
+ const request={action,nonce,linkId:cfg.linkId||undefined,publicKey:action==='pair'?keys.publicKey:undefined,name:'债务管理器手机',supportedBanks:['CEB','CITIC']};
  location.replace(SERVICE+'#request='+b64(new TextEncoder().encode(JSON.stringify(request))));
  return false;
 }
@@ -68,7 +68,7 @@ async function receive(){
   localStorage.setItem(DATA,next);
   if(localStorage.getItem(DATA)!==next)throw Error('账本写入校验失败，请保留备份并停止操作');
  }
- const report={at:new Date().toISOString(),updated:result.updated,results:result.results,lastCheck:payload.feed.lastCheck||null,policy:result.policy};
+ const report={at:new Date().toISOString(),updated:result.updated,results:result.results,lastCheck:payload.feed.lastCheck||null,policy:result.policy,cloud:payload.feed};
  localStorage.setItem(REPORT,JSON.stringify(report));
  localStorage.setItem(CFG,JSON.stringify({enabled:true,linkId:payload.linkId,expiresAt:payload.expiresAt,lastAttempt:Date.now(),lastSuccess:Date.now()}));
  if(pending.mode==='startup'){location.replace(ROOT+'?bill_skip=1');return {redirected:true};}
@@ -81,5 +81,6 @@ async function beforeBoot(){
  try{return await begin('startup',false)}catch(e){localStorage.setItem(REPORT,JSON.stringify({at:new Date().toISOString(),error:e.message}));return true;}
 }
 function disable(){const cfg=config();cfg.enabled=false;localStorage.setItem(CFG,JSON.stringify(cfg));sessionStorage.removeItem(PENDING);}
-window.DebtBillSync={begin,receive,beforeBoot,disable,config,report:()=>read(REPORT,null),book};
+async function receiveSafe(){try{return await receive()}catch(e){const prior=read(REPORT,{});localStorage.setItem(REPORT,JSON.stringify({...prior,error:String(e.message||e),errorAt:new Date().toISOString()}));throw e;}}
+window.DebtBillSync={begin,receive:receiveSafe,beforeBoot,disable,config,report:()=>read(REPORT,null),book};
 })();

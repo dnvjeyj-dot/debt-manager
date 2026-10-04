@@ -1,0 +1,40 @@
+(function(){'use strict';
+const $=id=>document.getElementById(id),S=window.DebtBillSync,P=window.DebtBillStatus;let busy=false;
+const money=x=>typeof x==='number'&&Number.isFinite(x)?'¥'+x.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+const time=x=>x&&Number.isFinite(Date.parse(x))?new Date(x).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'尚无记录';
+const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e};
+function line(parent,k,v){const e=node('div',undefined,'line');e.append(node('span',k),node('span',v));parent.appendChild(e)}
+function view(){
+ const cfg=S.config(),r=S.report();let data,map;
+ try{data=S.book().data;map=JSON.parse(localStorage.getItem('debt_manager_card_map_v1')||'{}')}catch(e){$('message').textContent=e.message;$('connect').disabled=true;$('sync').disabled=true;return}
+ const states=P.project(data,map,r),health=P.health(r);
+ $('message').textContent=(cfg.enabled?'已连接 · 启动时自动同步':'自动同步尚未开启')+'\n本机最近接收：'+time(cfg.lastSuccess?new Date(cfg.lastSuccess).toISOString():null)+(r&&r.error?'\n最近尝试未完成：'+r.error:'');
+ $('connect').hidden=!!cfg.enabled;$('sync').hidden=!cfg.linkId;$('off').hidden=!cfg.enabled;$('renew').hidden=!cfg.linkId;
+ const checks=$('checks');checks.replaceChildren();
+ const a=health.automatic,l=health.latest;
+ checks.appendChild(node('p',a?'自动邮箱检查：'+(a.outcome==='complete'?'完成':a.outcome==='running'?'尚未完成':'有异常')+' · '+time(a.completed_at||a.started_at):'自动邮箱检查：尚无完成回执',health.automaticFresh?'oktext':'error'));
+ if(l)checks.appendChild(node('p','最近一次邮箱检查：'+(l.mode==='automatic'?'自动任务':'本次手动检查')+' · '+time(l.completed_at||l.started_at)+' · '+({complete:'完成',running:'进行中',partial:'部分完成',error:'失败'}[l.outcome]||'待核对')));
+ checks.appendChild(node('p','私有库状态取自：'+time(health.cloudAt)+'。超时或缺少回执时，不代表邮箱没有新邮件。','sub'));
+ const applied=states.filter(x=>['applied','applied_changed'].includes(x.state)).length,attention=states.filter(x=>['pending','protected','review','conflict','ambiguous','changed_period'].includes(x.state)).length;
+ $('metrics').replaceChildren();for(const [v,k]of [[applied,'已写入本机'],[attention,'待处理'],[states.filter(x=>x.last4).length,'尾号已填写']]){const e=node('div',undefined,'metric');e.append(node('b',v),node('span',k));$('metrics').appendChild(e)}
+ $('mapping').textContent='本机 '+states.length+' 张卡。尾号已填写不代表收到账单；请看具体出账日期。';
+ const filter=$('filter').value;$('cards').replaceChildren();
+ for(const x of states){if(filter==='applied'&&!['applied','applied_changed'].includes(x.state)||filter==='attention'&&!['pending','protected','review','conflict','ambiguous','changed_period'].includes(x.state))continue;
+  const card=node('article',undefined,'card'),top=node('div',undefined,'top'),name=node('div');name.append(node('div',x.cardName,'name'),node('div',x.last4?'尾号 '+x.last4:'尾号未填写','tail'));top.append(name,node('span',x.label,'badge '+x.tone));card.appendChild(top);
+  if(x.statementDate)card.appendChild(node('p','邮件账单日 '+x.statementDate+(x.dueDate?' · 到期 '+x.dueDate:''),'meta'));
+  if(x.originalAmount!==undefined){const box=node('div',undefined,'money');for(const [k,v]of [['邮件出账原额',x.originalAmount],['本机本期账单',x.localAmount]]){const d=node('div');d.append(node('small',k),node('b',money(v)));box.appendChild(d)}card.appendChild(box)}
+  card.appendChild(node('p',x.detail,'sub'));
+  if(x.appliedAt)line(card,'首次写入本机',time(x.appliedAt));
+  if(x.storedAt||x.receivedAt){const d=node('details');d.appendChild(node('summary','查看邮件与入库时间'));line(d,'Gmail 收到',time(x.receivedAt));line(d,'私有库入库',time(x.storedAt));card.appendChild(d)}
+  $('cards').appendChild(card);
+ }
+ if(!$('cards').children.length)$('cards').appendChild(node('p','当前筛选下没有记录','sub'));
+ const sources=r&&r.cloud&&Array.isArray(r.cloud.sourceStates)?r.cloud.sourceStates:[];
+ const extra=sources.filter(x=>['review','conflict'].includes(x.state)&&!states.some(s=>s.bank===x.bank&&s.last4===x.last4));
+ $('sourceSection').hidden=!extra.length;$('sources').replaceChildren();for(const x of extra)$('sources').appendChild(node('p',(x.bank||'待识别银行')+(x.last4?' · 尾号 '+x.last4:'')+' · '+(x.reason||'待核对')));
+ $('results').textContent=r&&r.error?'最近同步未完成：'+r.error:r?'本次新增写入 '+(r.updated||0)+' 张 · '+time(r.at)+'。0 张只表示本次没有新增写入，不代表以前未同步。':'尚未执行本机同步。';
+}
+async function start(renew){if(busy)return;busy=true;$('message').textContent='正在准备安全连接…';try{await S.begin('manual',renew)}catch(e){$('message').textContent=e.message;busy=false}}
+$('connect').onclick=()=>start(false);$('sync').onclick=()=>start(false);$('off').onclick=()=>{S.disable();view()};$('renew').onclick=()=>{if(confirm('重新配对此手机？不会删除财务数据。'))start(true)};$('filter').onchange=view;
+(async()=>{try{const r=await S.receive();if(r&&r.redirected)return;view()}catch(e){view();$('message').textContent=e.message+'。请保留原账本，不要重新导入。'}})();
+})();
