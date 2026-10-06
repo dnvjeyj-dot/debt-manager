@@ -12,7 +12,7 @@ function project(data,mapping,report){
   if(!last4)return {...base,state:'unmapped',label:'未填写尾号',tone:'muted',detail:'尚未建立尾号对应关系，无法匹配邮件账单。'};
   const unique=cards.filter(x=>M.bank(x.name)===bank&&mapped[x.name]===last4).length===1;
   if(!unique)return {...base,state:'ambiguous',label:'映射有冲突',tone:'warn',detail:'同一银行和尾号对应多张卡，暂停写入。'};
-  const entries=Object.values(book).filter(x=>x&&x.bank===bank&&x.last4===last4&&x.cardName===c.name&&M.valid(x,'9999-12-31')).sort((a,b)=>b.statementDate.localeCompare(a.statementDate));
+  const entries=Object.entries(book).map(([identity,x])=>x&&typeof x==='object'?{...x,identity}:null).filter(x=>x&&x.bank===bank&&x.last4===last4&&x.cardName===c.name&&M.valid(x,'9999-12-31')).sort((a,b)=>b.statementDate.localeCompare(a.statementDate));
   const mail=items.filter(x=>x.bank===bank&&x.last4===last4).sort((a,b)=>b.statementDate.localeCompare(a.statementDate))[0];
   const saved=entries[0];
   const latest=mail&&(!saved||mail.statementDate>=saved.statementDate)?mail:saved;

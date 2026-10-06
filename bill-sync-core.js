@@ -1,13 +1,21 @@
 /* Email-priority merge. Adding banks must not reapply already processed statements. */
 (function(root){
 'use strict';
-const POLICY='email-priority-v2',SUPPORTED=['CEB','CITIC'];
+const POLICY='email-priority-v2',SUPPORTED=['CEB','CITIC','CIB'];
 const FIELDS=['bank','last4','currency','statementDate','dueDate','periodStart','periodEnd','amountCents','minimumCents'];
 const own=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 const cash=n=>'¥'+(n/100).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
 function date(s){if(typeof s!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(s))return false;const n=Date.parse(s+'T00:00:00Z');return Number.isFinite(n)&&new Date(n).toISOString().slice(0,10)===s;}
-function bank(name){const s=String(name||'').replace(/\s/g,'').replace(/\d+$/,'');const names={CEB:['光大','光大银行','中国光大银行'],CITIC:['中信','中信银行','中信信用卡','中国中信银行'],CMB:['招行','招商','招商银行'],ICBC:['工行','工商','工商银行','中国工商银行'],ABC:['农行','农业银行'],BOC:['中行','中国银行'],CCB:['建行','建设银行'],CIB:['兴业','兴业银行'],CGB:['广发','广发银行'],SPDB:['浦发','浦发银行'],PAB:['平安','平安银行'],BOCOM:['交行','交通银行'],CMBC:['民生','民生银行'],HXB:['华夏','华夏银行'],PSBC:['邮储','邮储银行']};return Object.keys(names).find(k=>names[k].includes(s))||null;}
-function valid(p,today){const days=(a,b)=>(Date.parse(a)-Date.parse(b))/86400000;return p&&SUPPORTED.includes(p.bank)&&p.currency==='CNY'&&/^\d{4}$/.test(p.last4)&&[p.statementDate,p.dueDate,p.periodStart,p.periodEnd].every(date)&&p.periodEnd===p.statementDate&&p.statementDate<=today&&days(p.periodEnd,p.periodStart)>=1&&days(p.periodEnd,p.periodStart)<=62&&days(p.dueDate,p.statementDate)>=1&&days(p.dueDate,p.statementDate)<=75&&Number.isSafeInteger(p.amountCents)&&p.amountCents>=0&&p.amountCents<=2000000000&&Number.isSafeInteger(p.minimumCents)&&p.minimumCents>=0&&p.minimumCents<=p.amountCents&&p.identity===p.bank+':'+p.last4+':'+p.statementDate+':CNY';}
+function bank(name){const s=String(name||'').replace(/\s/g,'').replace(/\d+$/,'');const names={CEB:['光大','光大银行','中国光大银行'],CITIC:['中信','中信银行','中信信用卡','中国中信银行'],CMB:['招行','招商','招商银行'],ICBC:['工行','工商','工商银行','中国工商银行'],ABC:['农行','农业银行'],BOC:['中行','中国银行'],CCB:['建行','建设银行'],CIB:['兴业','兴业银行','兴业信用卡','兴业银行信用卡'],CGB:['广发','广发银行'],SPDB:['浦发','浦发银行'],PAB:['平安','平安银行'],BOCOM:['交行','交通银行'],CMBC:['民生','民生银行'],HXB:['华夏','华夏银行'],PSBC:['邮储','邮储银行']};return Object.keys(names).find(k=>names[k].includes(s))||null;}
+function valid(p,today){
+ const days=(a,b)=>(Date.parse(a)-Date.parse(b))/86400000;
+ if(!p||!SUPPORTED.includes(p.bank))return false;
+ // CIB's verified summary does not state cycle boundaries; missing dates stay null.
+ const cycle=p.bank==='CIB'
+  ? p.periodStart===null&&p.periodEnd===null&&p.periodSource==='not-stated-in-email'
+  : [p.periodStart,p.periodEnd].every(date)&&p.periodEnd===p.statementDate&&days(p.periodEnd,p.periodStart)>=1&&days(p.periodEnd,p.periodStart)<=62;
+ return cycle&&p.currency==='CNY'&&/^\d{4}$/.test(p.last4)&&[p.statementDate,p.dueDate].every(date)&&p.statementDate<=today&&days(p.dueDate,p.statementDate)>=1&&days(p.dueDate,p.statementDate)<=75&&Number.isSafeInteger(p.amountCents)&&p.amountCents>=0&&p.amountCents<=2000000000&&Number.isSafeInteger(p.minimumCents)&&p.minimumCents>=0&&p.minimumCents<=p.amountCents&&p.identity===p.bank+':'+p.last4+':'+p.statementDate+':CNY';
+}
 function merge(input,mapping,items,now){
  if(!input||!Array.isArray(input.cards)||!Array.isArray(input.debts)||!Array.isArray(input.receivables)||input.cards.some(c=>!c||typeof c.name!=='string'))throw Error('本机账本不存在或格式不完整，未写入任何数据');
  if(!Array.isArray(items)||items.length>100)throw Error('账单响应格式异常');
@@ -33,7 +41,7 @@ function merge(input,mapping,items,now){
   else if(p.dueDate<today){status='protected';reason='历史到期账单仅归档，不重新挂账';}
   const before={};for(const k of ['statement','statementDay','dueDay','lastStatementDate','statementDueDate','minimumPayment'])if(own(c,k))before[k]=c[k];
   if(status==='updated'){c.statement=p.amountCents/100;c.statementDay=Number(p.statementDate.slice(-2));c.dueDay=Number(p.dueDate.slice(-2));c.lastStatementDate=p.statementDate;c.statementDueDate=p.dueDate;c.minimumPayment=p.minimumCents/100;updated++;}
-  book[p.identity]={policy:POLICY,bank:p.bank,last4:p.last4,currency:p.currency,cardName:c.name,statementDate:p.statementDate,dueDate:p.dueDate,periodStart:p.periodStart,periodEnd:p.periodEnd,amountCents:p.amountCents,minimumCents:p.minimumCents,status,reason,processedAt:stamp,sourceId:p.sourceId||null,before,previousStatus:prior&&prior.status||null};
+  book[p.identity]={policy:POLICY,bank:p.bank,last4:p.last4,currency:p.currency,cardName:c.name,statementDate:p.statementDate,dueDate:p.dueDate,periodStart:p.periodStart,periodEnd:p.periodEnd,...(p.periodSource?{periodSource:p.periodSource}:{}),amountCents:p.amountCents,minimumCents:p.minimumCents,status,reason,processedAt:stamp,sourceId:p.sourceId||null,before,previousStatus:prior&&prior.status||null};
   results.push({...basic,cardName:c.name,status,applied:status==='updated',appliedAt:status==='updated'?stamp:null,reason});
   const oldAmount=before.statement===null||before.statement===undefined||before.statement===''||!Number.isFinite(Number(before.statement))?'待补':cash(Math.round(Number(before.statement)*100));
   history.unshift({time:stamp,title:'账单同步 '+c.name+(status==='updated'?' · 邮箱覆盖 '+cash(p.amountCents):' · 保留原记录'),note:'出账 '+p.statementDate+' · 到期 '+p.dueDate+' · '+(status==='updated'?'本期账单 '+oldAmount+' → '+cash(p.amountCents)+'；使用邮件出账原额，不回溯扣减已有还款。':reason)});changed=true;
