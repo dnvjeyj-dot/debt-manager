@@ -29,8 +29,9 @@ function saveLedger(ledger,storage){const s=storage||root.localStorage;s.setItem
 function sync(data,storage,now){
  const s=storage||root.localStorage,ledger=readLedger(s),seen=new Set(ledger.entries.map(x=>x&&x.sourceKey).filter(Boolean));let added=0;
  for(const h of arr(obj(data).history)){const x=parseHistoryItem(h);if(!x||seen.has(x.sourceKey))continue;ledger.entries.push(x);seen.add(x.sourceKey);added++}
+ const reconciled=reconcileExisting(ledger);
  ledger.entries=ledger.entries.filter(x=>x&&TYPES.includes(x.type)&&typeof x.cardName==='string'&&x.cardName&&Number(x.amount)>0).sort((a,b)=>String(b.time||'').localeCompare(String(a.time||''))).slice(0,8000);
- ledger.lastSyncAt=now||new Date().toISOString();saveLedger(ledger,s);return {ledger,added};
+ ledger.lastSyncAt=now||new Date().toISOString();saveLedger(ledger,s);return {ledger,added,reconciled};
 }
 function dateKey(v){if(typeof v!=='string')return'';if(/^\d{4}-\d{2}-\d{2}/.test(v))return v.slice(0,10);const t=Date.parse(v);return Number.isFinite(t)?new Date(t+28800000).toISOString().slice(0,10):''}
 function dayDiff(a,b){const x=Date.parse(a+'T00:00:00Z'),y=Date.parse(b+'T00:00:00Z');return Number.isFinite(x)&&Number.isFinite(y)?Math.abs(x-y)/86400000:999}
@@ -40,8 +41,23 @@ function findManualMatch(entries,cardName,tx){
  const base=tx.category==='pay'?'pay':tx.category==='spend'?'spend':null;if(!base)return null;
  const amount=Math.abs(tx.amountCents)/100,txDay=tx.transactionAt.slice(0,10);
  const c=entries.filter(x=>x&&x.cardName===cardName&&(x.source==='history'||x.source==='history+email')&&x.type===base&&Math.abs(Number(x.amount)-amount)<0.005&&dayDiff(dateKey(x.time),txDay)<=2&&!arr(x.emailMatches).some(m=>m&&m.transactionId===tx.id));
- if(tx.category==='spend'){const d=c.filter(x=>similar(x.note,tx.description));return d.length===1?d[0]:null}
- if(c.length===1)return c[0];const d=c.filter(x=>similar(x.note,tx.description));return d.length===1?d[0]:null;
+ if(c.length===1)return c[0];
+ const d=c.filter(x=>similar(x.note,tx.description));return d.length===1?d[0]:null;
+}
+function reconcileExisting(ledger){
+ const remove=new Set();let matched=0;
+ for(const x of arr(ledger.entries)){
+  if(!x||x.source!=='email'||!['spend','pay'].includes(x.type)||!x.transactionId)continue;
+  const tx={id:x.transactionId,category:x.type,amountCents:Math.round((typeof x.signedAmount==='number'?x.signedAmount:(x.type==='pay'?-x.amount:x.amount))*100),transactionAt:x.transactionDate||String(x.time||'').slice(0,10),description:x.note||''};
+  const manual=findManualMatch(ledger.entries,x.cardName,tx);if(!manual)continue;
+  manual.emailMatches=arr(manual.emailMatches);manual.emailMatches.push({transactionId:x.transactionId,batchId:x.cloudBatchId||null,statementDate:x.statementDate||null,description:x.note||'',postDate:x.postDate||null});
+  manual.source='history+email';manual.sourceLabel='手工记录 + 电子账单';
+  if(!manual.statementDate)manual.statementDate=x.statementDate||null;
+  if(!manual.postDate)manual.postDate=x.postDate||null;
+  remove.add(x.id);matched++;
+ }
+ if(remove.size)ledger.entries=ledger.entries.filter(x=>!remove.has(x.id));
+ return matched;
 }
 function importCloudBatches(data,mapping,batches,storage,now){
  const s=storage||root.localStorage,ledger=readLedger(s),map=obj(mapping),cards=arr(obj(data).cards),existingEmail=new Set();
@@ -69,6 +85,7 @@ function importCloudBatches(data,mapping,batches,storage,now){
   }
   receipts.add(b.batchId);results.push({batchId:b.batchId,status:'imported',bank:b.bank,last4:b.last4,cardName,transactionCount:converted.length});
  }
+ const reconciled=reconcileExisting(ledger);matched+=reconciled;
  ledger.entries=ledger.entries.filter(x=>x&&TYPES.includes(x.type)&&typeof x.cardName==='string'&&x.cardName&&Number(x.amount)>0).sort((a,b)=>String(b.time||'').localeCompare(String(a.time||''))).slice(0,8000);
  ledger.cloudBatchReceipts=Array.from(receipts).slice(-100);ledger.lastCloudImportAt=now||new Date().toISOString();saveLedger(ledger,s);
  return {ledger,added,matched,skipped,results,receivedBatchIds:ledger.cloudBatchReceipts};
@@ -85,6 +102,6 @@ function csv(entries){
  for(const x of arr(entries))rows.push([x.time,x.postDate||'',x.cardName,typeLabel(x.type),x.sourceLabel||'',signed(x).toFixed(2),x.note||'',x.statementDate||'',x.debtBefore==null?'':Number(x.debtBefore).toFixed(2),x.debtAfter==null?'':Number(x.debtAfter).toFixed(2),x.fundName||'',x.fundAmount==null?'':Number(x.fundAmount).toFixed(2)]);
  return '\ufeff'+rows.map(r=>r.map(esc).join(',')).join('\r\n');
 }
-const api={DATA_KEY,MAP_KEY,LEDGER_KEY,VERSION,TYPES,parseHistoryItem,readLedger,saveLedger,sync,syncFromStorage,importCloudBatches,filter,summary,cards,months,money,csv,monthOf,hash,typeLabel,signed,bank};
+const api={DATA_KEY,MAP_KEY,LEDGER_KEY,VERSION,TYPES,parseHistoryItem,readLedger,saveLedger,sync,syncFromStorage,importCloudBatches,reconcileExisting,filter,summary,cards,months,money,csv,monthOf,hash,typeLabel,signed,bank};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.DebtCardLedger=api;
 })(typeof window!=='undefined'?window:globalThis);
