@@ -1,4 +1,4 @@
-const CACHE='debt-manager-shell-v18-email-transactions';
+const CACHE='debt-manager-shell-v19-ledger-dedupe';
 const ASSETS=['./card-ledger.html','./card-ledger-core.js','./card-ledger-page.js','./card-ledger-bridge.js','./repayment-reminders.html','./repayment-reminders-core.js','./repayment-reminders-page.js','./repayment-reminders-entry.js','./bill-sync.html','./bill-sync-core.js','./bill-sync-client.js','./bill-sync-status.js','./bill-sync-page.js','./bill-sync-badges.js','./bill-sync-guard.js','./card-map.html','./','./index.html','./v9-1.b64','./v9-2.b64','./v9-3.b64','./v9-4.b64','./v9-5.b64','./v9-6.b64','./home-available-v10.js','./manifest.webmanifest','./icon.svg','./start.html','./diagnose.html','./beta-paid.html'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('debt-manager-shell-')&&k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
