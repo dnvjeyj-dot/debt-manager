@@ -21,13 +21,14 @@ function project(data,mapping,report){
   if(!latest){const supported=M.SUPPORTED.includes(bank);return {...base,state:supported?'no_statement':'unsupported',label:supported?'尚无已入库账单':'此银行待适配',tone:'muted',detail:supported?'本机尚无该卡的入库记录。请结合上方邮箱检查回执判断；这不等于邮箱未收到。':'尾号已保存。当前尚不自动处理此银行，收到邮件后会登记待适配。'};}
   const p=latest,entry=book[p.identity];
   const src=sources.find(x=>x.sourceId===p.sourceId)||{};
-  const detail={...base,identity:p.identity,statementDate:p.statementDate,dueDate:p.dueDate,originalAmount:p.amountCents/100,minimumPayment:p.minimumCents/100,receivedAt:src.receivedAt||null,storedAt:p.storedAt||src.storedAt||null};
+  const detail={...base,identity:p.identity,statementDate:p.statementDate,statementDateSource:p.statementDateSource||null,periodEnd:p.periodEnd||null,dueDate:p.dueDate,originalAmount:p.amountCents/100,minimumPayment:p.minimumCents/100,receivedAt:src.receivedAt||null,storedAt:p.storedAt||src.storedAt||null};
   if(!entry||entry.cardName!==c.name||entry.policy!==M.POLICY)return {...detail,state:'pending',label:'已入库 · 待同步',tone:'warn',detail:'账单已到私有库，尚无当前规则的本机写入回执。'};
   if(entry.status!=='updated')return {...detail,state:'protected',label:'已入库 · 未覆盖',tone:'warn',detail:entry.reason||'本期保留原记录'};
-  const fields=['bank','last4','currency','statementDate','dueDate','amountCents','minimumCents'];
+  const fields=['bank','last4','currency','statementDate','statementDateSource','dueDate','amountCents','minimumCents'];
   if(!fields.every(k=>entry[k]===p[k]))return {...detail,state:'conflict',label:'内容不一致 · 待核对',tone:'warn',detail:'本机回执与入库内容不一致，不自动覆盖。'};
   const evidence=list(data.history).some(h=>h&&h.time===entry.processedAt&&String(h.title||'').startsWith('账单同步 '+c.name));
-  if(c.lastStatementDate!==p.statementDate||!evidence)return {...detail,state:'changed_period',label:'曾写入 · 本机待核对',tone:'warn',appliedAt:entry.processedAt,detail:'本机账期或操作历史已变化，可能撤销、手工结转或恢复过备份；不把旧回执冒充当前账单。'};
+  const periodOk=p.bank==='BOCOM'&&p.statementDateSource==='period-end-key-only'?c.lastStatementPeriodEnd===p.periodEnd:c.lastStatementDate===p.statementDate;
+  if(!periodOk||!evidence)return {...detail,state:'changed_period',label:'曾写入 · 本机待核对',tone:'warn',appliedAt:entry.processedAt,detail:'本机账期或操作历史已变化，可能撤销、手工结转或恢复过备份；不把旧回执冒充当前账单。'};
   const changed=typeof c.statement!=='number'||Math.round(c.statement*100)!==p.amountCents;
   return {...detail,state:changed?'applied_changed':'applied',label:changed?'已同步 · 后续金额有变动':'已同步至本机',tone:changed?'info':'ok',appliedAt:entry.processedAt,detail:changed?'首次写入后，本机金额发生还款或修改等变化；不会重复覆盖。':'这一期有本机写入回执，且账单金额与邮件一致。'};
  });
