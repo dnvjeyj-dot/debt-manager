@@ -31,6 +31,17 @@
   const raw=atob(texts.join(''));const bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
   const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
   let app=await new Response(stream).text();
+  // Settled loans stay in local history but disappear from operational views.
+  app=app.replace('function debtMonthlyRequired(d){','function debtIsActive(d){if(!d||d.balance===null||d.balance===undefined||d.balance==="")return true;const n=Number(d.balance);return !Number.isFinite(n)||n>0.005}\\nfunction debtMonthlyRequired(d){\\n  if(!debtIsActive(d))return 0;');
+  app=app.replaceAll('data.debts.forEach(d=>{\\n    if(d.dueDay){','data.debts.forEach(d=>{\\n    if(!debtIsActive(d))return;\\n    if(d.dueDay){');
+  app=app.replace('  // Debts\\n  data.debts.forEach((d,idx)=>{','  // Debts\\n  data.debts.forEach((d,idx)=>{\\n    if(!debtIsActive(d))return;');
+  app=app.replace('  data.debts.forEach((d,idx)=>{\\n    const req=debtMonthlyRequired(d);','  data.debts.forEach((d,idx)=>{\\n    if(!debtIsActive(d))return;\\n    const req=debtMonthlyRequired(d);');
+  app=app.replace('duplicateNames(data.debts).forEach(','duplicateNames(data.debts.filter(debtIsActive)).forEach(');
+  app=app.replace('let list=data.debts.filter(d=>d.maturity)','let list=data.debts.filter(d=>debtIsActive(d)&&d.maturity)');
+  app=app.replace('function renderDebts(){\\n  const rows=data.debts.map((d,idx)=>{','function renderDebts(){\\n  const active=data.debts.map((d,idx)=>({d,idx})).filter(x=>debtIsActive(x.d));\\n  const rows=active.map(({d,idx})=>{');
+  app=app.replace("$('debtMobile').innerHTML=data.debts.map((d,idx)=>","$('debtMobile').innerHTML=active.map(({d,idx})=>");
+  app=app.replace('const maturities=data.debts.filter(d=>d.maturity)','const maturities=data.debts.filter(d=>debtIsActive(d)&&d.maturity)');
+  app=app.replace('未特别说明的私人借款默认先息后本','未特别说明的私人借款默认先息后本 · 已结清贷款自动隐藏，历史数据保留');
   app=app.replace('<button type="button" data-more-page="data">','<button type="button" id="billSyncEntry"><span class="mi">↻</span>账单同步</button><button type="button" data-more-page="data">');
   app=app.replace('<button class="btn" id="exportBtn"','<a class="btn" href="./bill-sync.html" style="text-decoration:none">账单同步</a><button class="btn" id="exportBtn"');
   app=app.replace('iPhone 版 · 数据仅保存在本机','本机账本 · 可选私有账单同步');
